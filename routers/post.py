@@ -88,7 +88,7 @@ async def create_post(db: db_dependency,
 
 @router.get("/{post_id}")
 async def get_post(db: db_dependency, post_id: int):
-    post = db.query(Post).options(joinedload(Post.pin), joinedload(Post.user)).filter(Post.id == post_id).first()
+    post = db.query(Post).options(joinedload(Post.user)).filter(Post.id == post_id).first()
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
     return post

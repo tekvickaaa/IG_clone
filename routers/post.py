@@ -132,3 +132,7 @@ async def like_post(db: db_dependency,
     db.add(post_like)
     db.commit()
     db.refresh(post)
+
+@router.post("/{post_id}/comment")
+async def comment_post():
+    pass

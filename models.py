@@ -18,6 +18,7 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, index=True, nullable=False)
+    nickname = Column(String, nullable=True)
     hashed_password = Column(String, nullable=False)
 
     bio = Column(Text, nullable=True)

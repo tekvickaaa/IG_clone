@@ -8,7 +8,7 @@ from database import SessionLocal
 from starlette import status
 from sqlalchemy.orm import Session, joinedload
 from models import User, Follow, Post
-from schemas import UserResponse, FollowResponse
+from schemas import UserResponse, FollowResponse, PostResponse
 from routers.auth import get_current_user
 
 router = APIRouter(
@@ -45,9 +45,9 @@ async def get_all_users(db: db_dependency):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No users found")
     return users
 
-@router.post("/bio")
+@router.post("/bio", response_model=UserResponse)
 async def set_bio(user: user_dependency, db: db_dependency, new_bio: str):
-    user = db.query(User).filter(User.id == id).first()
+    user = db.query(User).filter(User.id == user["id"]).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not signed in")
     if len(new_bio) > 255:
@@ -57,7 +57,7 @@ async def set_bio(user: user_dependency, db: db_dependency, new_bio: str):
     db.commit()
     return user
 
-@router.post("/pfp_url")
+@router.post("/pfp_url", response_model=UserResponse)
 async def set_pfp(user: user_dependency, db: db_dependency, media: UploadFile = File(...)):
     if media.content_type not in [
         "image/jpeg", "image/png", "image/gif", "video/mp4", "image/webp",
@@ -76,17 +76,27 @@ async def set_pfp(user: user_dependency, db: db_dependency, media: UploadFile = 
         f.write(await media.read())
     media_url = f"/media/{user['id']}/{unique_name}"
 
-    user.pfp_url = media_url
+    db_user = db.query(User).filter(User.id == user["id"]).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    db_user.pfp_url = media_url
     db.commit()
+    db.refresh(db_user)
     return user
 
-@router.post("/song_url")
+@router.post("/song_url", response_model=UserResponse)
 async def set_song_id(user: user_dependency, db: db_dependency, new_song: str):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not signed in")
-    user.song_id = new_song
+    db_user = db.query(User).filter(User.id == user["id"]).first()
+    if not db_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    db_user.song_id = str(new_song)
     db.commit()
-    return user
+    db.refresh(db_user)
+    return db_user
 
 @router.get("/{id}", response_model=UserResponse)
 async def get_user_by_id(id: int, db: db_dependency):
@@ -146,7 +156,7 @@ async def unfollow_user(id: int, db: db_dependency, user: user_dependency):
     db.commit()
     return {"message": "Unfollowed successfully"}
 
-@router.get("/{id}/posts")
+@router.get("/{id}/posts", response_model=list[PostResponse])
 async def get_posts_by_user(id: int, db: db_dependency):
     posts = db.query(Post).options(joinedload(Post.user)).filter(Post.user_id == id).all()
     if not posts:

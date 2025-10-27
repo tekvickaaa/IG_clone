@@ -6,6 +6,7 @@ from starlette import status
 from sqlalchemy.orm import Session, joinedload
 from models import Post, PostLike
 from routers.auth import get_current_user
+from schemas import PostResponse
 import os
 import uuid
 from pathlib import Path
@@ -32,7 +33,7 @@ load_dotenv()
 MEDIA_DIR = Path(os.getenv("MEDIA_DIR"))
 
 
-@router.get("/")
+@router.get("/", response_model=list[PostResponse])
 async def get_all_posts(db: db_dependency):
     posts = db.query(Post).options(joinedload(Post.user)).all()
     if not posts:
@@ -40,7 +41,7 @@ async def get_all_posts(db: db_dependency):
     return [post for post in posts]
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=PostResponse)
 async def create_post(db: db_dependency,
                       user: user_dependency,
                       title: str | None = Form(None),
@@ -86,7 +87,7 @@ async def create_post(db: db_dependency,
     return new_post
 
 
-@router.get("/{post_id}")
+@router.get("/{post_id}", response_model=PostResponse)
 async def get_post(db: db_dependency, post_id: int):
     post = db.query(Post).options(joinedload(Post.user)).filter(Post.id == post_id).first()
     if not post:

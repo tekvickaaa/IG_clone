@@ -22,7 +22,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
 
     bio = Column(Text, nullable=True)
-    song_id = Column(Integer, nullable=True)
+    song_id = Column(String, nullable=True)
     pfp_url = Column(String, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -42,7 +42,7 @@ class Post(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    media_url = Column(String, nullable=True)
+    media_url = Column(String)
     title = Column(String, nullable=True)
     description = Column(Text, nullable=True)
     like_count = Column(Integer, default=0)
@@ -61,3 +61,7 @@ class PostLike(Base):
     __table_args__ = (UniqueConstraint('user_id', 'post_id', name='_user_post_uc'),)
     user = relationship("User", back_populates="likes")
     post = relationship("Post", back_populates="likes")
+
+class Story(Base):
+    __tablename__ = "stories"
+    id = Column(Integer, primary_key=True)

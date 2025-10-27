@@ -16,14 +16,25 @@ class CreateUserRequest(BaseModel):
 class UserResponse(BaseModel):
     id: int
     username: str
+    nickname: Optional[str] = None
     bio: Optional[str] = None
-    pfp_url: str | None = None
-    song_id: int | None = None
-    posts_count: int
-    followers_count: int
-    following_count: int
+    song_id: Optional[str] = None
+    pfp_url: Optional[str] = None
+    posts_count: Optional[int] = 0
+    followers_count: Optional[int] = 0
+    following_count: Optional[int] = 0
+    created_at: Optional[datetime] = None
 
 class FollowResponse(BaseSchema):
     follower_id: int
     following_id: int
     followed_at: datetime
+
+class PostResponse(BaseSchema):
+    id: int
+    user_id: int
+    media_url: str
+    title: Optional[str] = None
+    description: Optional[str] = None
+    like_count: int
+    created_at: datetime

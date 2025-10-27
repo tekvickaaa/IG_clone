@@ -1,4 +1,3 @@
-from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from typing import Annotated, Optional
 from fastapi.params import Form
@@ -81,6 +80,7 @@ async def create_post(db: db_dependency,
     )
 
     db.add(new_post)
+    user.posts_count+=1
     db.commit()
     db.refresh(new_post)
     return new_post

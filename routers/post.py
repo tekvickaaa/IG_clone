@@ -4,7 +4,7 @@ from fastapi.params import Form
 from database import SessionLocal
 from starlette import status
 from sqlalchemy.orm import Session, joinedload
-from models import Post, PostLike
+from models import Post, PostLike, User
 from routers.auth import get_current_user
 from schemas import PostResponse
 import os
@@ -81,7 +81,8 @@ async def create_post(db: db_dependency,
     )
 
     db.add(new_post)
-    user.posts_count+=1
+    account = db.query(User).filter(User.id == user["id"]).first()
+    account.posts_count+=1
     db.commit()
     db.refresh(new_post)
     return new_post
@@ -105,6 +106,8 @@ async def delete_post(db: db_dependency, post_id: int, user: user_dependency):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Post not found or you do not have permission to delete it")
 
+    account = db.query(User).filter(User.id == user["id"]).first()
+    account.posts_count -= 1
     db.delete(post)
     db.commit()
     return {"detail": "Post deleted successfully"}

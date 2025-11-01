@@ -28,7 +28,7 @@ user_dependency = Annotated[dict, Depends(get_current_user)]
 
 load_dotenv()
 MEDIA_DIR = Path(os.getenv("MEDIA_DIR"))
-
+BASE_URL = os.getenv("BASE_URL", "http://56.228.35.186")
 @router.get("/", response_model=UserResponse)
 async def get_user(db: db_dependency, user: user_dependency):
     if not user:
@@ -44,6 +44,13 @@ async def get_all_users(db: db_dependency):
     if not users:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No users found")
     return users
+@router.post("/nickname", response_model=UserResponse)
+async def set_nickname(user: user_dependency, db: db_dependency, new_nickname: str):
+    user = db.query(User).filter(User.id == user["id"]).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not signed in")
+    if len(new_nickname) > 32:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bio too long")
 
 @router.post("/bio", response_model=UserResponse)
 async def set_bio(user: user_dependency, db: db_dependency, new_bio: str):
@@ -74,7 +81,7 @@ async def set_pfp(user: user_dependency, db: db_dependency, media: UploadFile = 
 
     with open(file_path, "wb") as f:
         f.write(await media.read())
-    media_url = f"/media/{user['id']}/{unique_name}"
+    media_url = f"{BASE_URL}/media/{user['id']}/{unique_name}"
 
     db_user = db.query(User).filter(User.id == user["id"]).first()
     if not db_user:

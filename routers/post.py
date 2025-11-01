@@ -31,6 +31,7 @@ user_dependency = Annotated[dict, Depends(get_current_user)]
 
 load_dotenv()
 MEDIA_DIR = Path(os.getenv("MEDIA_DIR"))
+BASE_URL = os.getenv("BASE_URL", "http://56.228.35.186")
 
 
 @router.get("/", response_model=list[PostResponse])

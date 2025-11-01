@@ -1,6 +1,12 @@
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+
+from dotenv import load_dotenv
+from pydantic import BaseModel, ConfigDict, computed_field
 from typing import List, Optional
+import os
+
+load_dotenv()
+BASE_URL = os.getenv("BASE_URL", "http://56.228.35.186")
 
 class BaseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -16,14 +22,27 @@ class CreateUserRequest(BaseModel):
 class UserResponse(BaseModel):
     id: int
     username: str
+    pfp_url: str
     nickname: Optional[str] = None
     bio: Optional[str] = None
     song_id: Optional[str] = None
-    pfp_url: Optional[str] = None
+
+    @computed_field
+    @property
+    def full_pfp_url(self) -> str | None:
+        if self.pfp_url:
+            if self.pfp_url.startswith('http'):
+                return self.pfp_url
+            return f"{BASE_URL}{self.pfp_url}"
+        return None
+
     posts_count: Optional[int] = 0
     followers_count: Optional[int] = 0
     following_count: Optional[int] = 0
     created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 class FollowResponse(BaseSchema):
     follower_id: int
@@ -38,3 +57,25 @@ class PostResponse(BaseSchema):
     description: Optional[str] = None
     like_count: int
     created_at: datetime
+
+    @computed_field
+    @property
+    def full_media_url(self) -> str | None:
+        if self.media_url:
+            if self.media_url.startswith('http'):
+                return self.media_url
+            return f"{BASE_URL}{self.media_url}"
+        return None
+
+    class Config:
+        from_attributes = True
+
+
+class FeedStoryResponse(BaseSchema):
+    id: int
+    user_id: int
+    media_url: str
+    has_liked: bool
+
+class StoryResponse(BaseSchema):
+    id: int

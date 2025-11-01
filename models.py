@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, Text, String, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, Text, String, DateTime, ForeignKey, UniqueConstraint, text
 from sqlalchemy.orm import relationship, validates
 from sqlalchemy.sql import func
 import datetime
-from sqlalchemy.sql.sqltypes import Interval
+from sqlalchemy.sql.sqltypes import Interval, Boolean
 from database import Base
 
 
@@ -36,6 +36,10 @@ class User(Base):
     likes = relationship("PostLike", back_populates="user")
     following = relationship("Follow", foreign_keys=[Follow.follower_id], back_populates="follower")
     followers = relationship("Follow", foreign_keys=[Follow.following_id], back_populates="following")
+    stories = relationship("Story", back_populates="user")
+    highlights = relationship("Highlight", back_populates="user")
+    story_likes = relationship("StoryLike", back_populates="user")
+    story_views = relationship("StoryView", back_populates="user")
 
 class Post(Base):
     __tablename__ = "posts"
@@ -43,6 +47,7 @@ class Post(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
     media_url = Column(String)
+    song_id = Column(String, nullable=True)
     title = Column(String, nullable=True)
     description = Column(Text, nullable=True)
     like_count = Column(Integer, default=0)
@@ -54,14 +59,65 @@ class Post(Base):
 
 class PostLike(Base):
     __tablename__ = "post_likes"
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, primary_key=True)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False, primary_key=True)
+    liked_at = Column(DateTime(timezone=True), default=func.now())
+
+    user = relationship("User", back_populates="likes")
+    post = relationship("Post", back_populates="likes")
+
+class PostView(Base):
+    __tablename__ = "post_views"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
-    liked_at = Column(DateTime(timezone=True), default=func.now())
-    __table_args__ = (UniqueConstraint('user_id', 'post_id', name='_user_post_uc'),)
-    user = relationship("User", back_populates="likes")
-    post = relationship("Post", back_populates="likes")
+    viewed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="post_views")
+    story = relationship("Post", back_populates="post_views")
+
+class Highlight(Base):
+    __tablename__ = "highlights"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String, nullable=False)
+    cover_story_id = Column(Integer, ForeignKey("stories.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="highlights")
+    story = relationship("Story", back_populates="highlights")
 
 class Story(Base):
     __tablename__ = "stories"
     id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    song_id = Column(String, nullable=True)
+    media_url = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), server_default=text("NOW() + INTERVAL '1 day'"))
+    highlight_id = Column(Integer, ForeignKey("highlight.id"), nullable=False)
+
+    user = relationship("User", back_populates="stories")
+    highlights = relationship("Highlight", back_populates="story")
+    story_likes = relationship("StoryLike", back_populates="story")
+    story_views = relationship("StoryView", back_populates="story")
+
+
+class StoryLike(Base):
+    __tablename__ = "story_likes"
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, primary_key=True)
+    story_id = Column(Integer, ForeignKey("stories.id"), nullable=False, primary_key=True)
+    liked_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="story_likes")
+    story = relationship("Story", back_populates="story_likes")
+
+class StoryView(Base):
+    __tablename__ = "story_views"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    story_id = Column(Integer, ForeignKey("stories.id"), nullable=False)
+    viewed_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="story_views")
+    story = relationship("Story", back_populates="story_views")

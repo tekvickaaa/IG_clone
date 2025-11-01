@@ -30,7 +30,10 @@ db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
 load_dotenv()
-MEDIA_DIR = Path(os.getenv("MEDIA_DIR"))
+BASE_DIR = Path(__file__).resolve().parent.parent
+MEDIA_DIR = Path(os.getenv("MEDIA_DIR", "media"))
+MEDIA_DIR = BASE_DIR / MEDIA_DIR
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 BASE_URL = os.getenv("BASE_URL", "http://56.228.35.186")
 
 @router.get("/", response_model=list[StoryResponse])

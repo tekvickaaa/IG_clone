@@ -22,7 +22,7 @@ class CreateUserRequest(BaseModel):
 class UserResponse(BaseModel):
     id: int
     username: str
-    pfp_url: str
+    pfp_url: Optional[str] = None
     nickname: Optional[str] = None
     bio: Optional[str] = None
     song_id: Optional[str] = None

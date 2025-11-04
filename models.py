@@ -16,6 +16,7 @@ class Follow(Base):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = {'extend_existing': True}
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, index=True, nullable=False)
     nickname = Column(String, nullable=True)
@@ -40,14 +41,16 @@ class User(Base):
     highlights = relationship("Highlight", back_populates="user")
     story_likes = relationship("StoryLike", back_populates="user")
     story_views = relationship("StoryView", back_populates="user")
+    post_views = relationship("PostView", back_populates="user")
 
 class Post(Base):
     __tablename__ = "posts"
+    __table_args__ = {'extend_existing': True}
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    media_url = Column(String)
-    song_id = Column(String, nullable=True)
+    media_count = Column(Integer, default=0)
+    song_id = Column(Integer, nullable=True)
     title = Column(String, nullable=True)
     description = Column(Text, nullable=True)
     like_count = Column(Integer, default=0)
@@ -56,6 +59,8 @@ class Post(Base):
 
     user = relationship("User", back_populates="posts")
     likes = relationship("PostLike", back_populates="post")
+    post_views = relationship("PostView", back_populates="post")
+    media = relationship("Media", back_populates="post")
 
 class PostLike(Base):
     __tablename__ = "post_likes"
@@ -74,10 +79,19 @@ class PostView(Base):
     viewed_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="post_views")
-    story = relationship("Post", back_populates="post_views")
+    post = relationship("Post", back_populates="post_views")
+
+class PostMedia(Base):
+   __tablename__ = "post_media"
+   post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
+   media_url = Column(String, nullable=False)
+   created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+   post = relationship("Post", back_populates="media")
 
 class Highlight(Base):
     __tablename__ = "highlights"
+    __table_args__ = {'extend_existing': True}
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String, nullable=False)
@@ -85,23 +99,25 @@ class Highlight(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="highlights")
-    story = relationship("Story", back_populates="highlights")
+    cover_story = relationship("Story", foreign_keys=[cover_story_id], back_populates="cover_highlights")
+    stories = relationship("Story", foreign_keys="Story.highlight_id", back_populates="highlight")
 
 class Story(Base):
     __tablename__ = "stories"
+    __table_args__ = {'extend_existing': True}
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    song_id = Column(String, nullable=True)
+    song_id = Column(Integer, nullable=True)
     media_url = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     expires_at = Column(DateTime(timezone=True), server_default=text("NOW() + INTERVAL '1 day'"))
-    highlight_id = Column(Integer, ForeignKey("highlight.id"), nullable=False)
+    highlight_id = Column(Integer, ForeignKey("highlights.id"), nullable=True)
 
     user = relationship("User", back_populates="stories")
-    highlights = relationship("Highlight", back_populates="story")
+    highlight = relationship("Highlight", foreign_keys=[highlight_id], back_populates="stories")
+    cover_highlights = relationship("Highlight", foreign_keys="Highlight.cover_story_id", back_populates="cover_story")
     story_likes = relationship("StoryLike", back_populates="story")
     story_views = relationship("StoryView", back_populates="story")
-
 
 class StoryLike(Base):
     __tablename__ = "story_likes"

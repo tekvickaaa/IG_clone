@@ -38,7 +38,10 @@ BASE_URL = os.getenv("BASE_URL", "http://56.228.35.186")
 
 @router.get("/", response_model=list[StoryResponse])
 async def get_all_stories(db: db_dependency):
-    pass
+    stories = db.query(Story).options(joinedload(Story.user)).all()
+    if not stories:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No posts found")
+    return stories
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=StoryResponse)
 async def create_story(db: db_dependency,

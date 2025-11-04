@@ -51,6 +51,9 @@ async def set_nickname(user: user_dependency, db: db_dependency, new_nickname: s
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not signed in")
     if len(new_nickname) > 32:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bio too long")
+    user.nickname = new_nickname
+    db.commit()
+    return user
 
 @router.post("/bio", response_model=UserResponse)
 async def set_bio(user: user_dependency, db: db_dependency, new_bio: str):

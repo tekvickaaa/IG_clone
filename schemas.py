@@ -82,7 +82,6 @@ class FeedStoryResponse(BaseSchema):
 
 class StoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-
     id: int
     highlight_id: Optional[int] = None
     user_id: int

@@ -54,67 +54,60 @@ async def create_post(db: db_dependency,
                       user: user_dependency,
                       title: str | None = Form(None),
                       description: str | None = Form(None),
-                      media: Annotated[list, UploadFile] = Form(...),
+                      media: UploadFile = File(...),
                       ):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
-    if not media or not getattr(media, 'filename'):
+    if not media or not media.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No media provided")
 
-    if len(media) > MAX_MEDIA_COUNT:
+    # Validate media type
+    if media.content_type not in [
+        "image/jpeg", "image/png", "image/gif", "video/mp4", "image/webp",
+        "image/avif", "image/svg+xml", "video/quicktime", "image/bmp",
+        "image/tiff", "image/heic"
+    ]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"Maximum {MAX_MEDIA_COUNT} media items allowed")
+                            detail=f"Unsupported media type: {media.content_type}")
 
-    new_post = Post(
-        user_id=user["id"],
-        title=title,
-        description=description,
-        media_count=len(media),
-    )
-    db.add(new_post)
-    db.flush()
+    user_dir = MEDIA_DIR / str(user["id"])
+    user_dir.mkdir(parents=True, exist_ok=True)
 
-    uploaded_files = []
+    ext = os.path.splitext(media.filename)[1]
+    unique_name = f"{uuid.uuid4().hex}{ext}"
+    file_path = user_dir / unique_name
 
     try:
-        for item in media:
-            if item.content_type not in [
-                "image/jpeg", "image/png", "image/gif", "video/mp4", "image/webp",
-                "image/avif", "image/svg+xml", "video/quicktime", "image/bmp",
-                "image/tiff", "image/heic"
-            ]:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                    detail=f"Unsupported media type: {item.content_type}")
+        file_size = 0
+        max_size = MAX_VIDEO_SIZE if 'video' in media.content_type else MAX_IMAGE_SIZE
 
-            user_dir = MEDIA_DIR / str(user["id"])
-            user_dir.mkdir(parents=True, exist_ok=True)
+        with open(file_path, "wb") as f:
+            while chunk := await media.read(1024 * 1024):  # 1MB chunks
+                file_size += len(chunk)
+                if file_size > max_size:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"File too large. Max size: {max_size / (1024 * 1024):.0f}MB"
+                    )
+                f.write(chunk)
 
-            ext = os.path.splitext(item.filename)[1]
-            unique_name = f"{uuid.uuid4().hex}{ext}"
-            file_path = user_dir / unique_name
+        media_url = f"/media/{user['id']}/{unique_name}"
 
-            file_size = 0
-            max_size = MAX_VIDEO_SIZE if 'video' in item.content_type else MAX_IMAGE_SIZE
+        new_post = Post(
+            user_id=user["id"],
+            title=title,
+            description=description,
+            media_url=media_url,
+        )
+        db.add(new_post)
+        db.flush()
 
-            with open(file_path, "wb") as f:
-                while chunk := await item.read(1024 * 1024):  # 1MB chunks
-                    file_size += len(chunk)
-                    if file_size > max_size:
-                        raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"File too large. Max size: {max_size / (1024 * 1024):.0f}MB"
-                        )
-                    f.write(chunk)
-
-            uploaded_files.append(file_path)
-            media_url = f"/media/{user['id']}/{unique_name}"
-
-            new_post_media = PostMedia(
-                media_url=media_url,
-                post_id=new_post.id,
-            )
-            db.add(new_post_media)
+        new_post_media = PostMedia(
+            media_url=media_url,
+            post_id=new_post.id,
+        )
+        db.add(new_post_media)
 
         account = db.query(User).filter(User.id == user["id"]).first()
         account.posts_count += 1
@@ -124,17 +117,15 @@ async def create_post(db: db_dependency,
         return new_post
 
     except HTTPException:
+        if file_path.exists():
+            file_path.unlink()
         db.rollback()
-        for file_path in uploaded_files:
-            if file_path.exists():
-                file_path.unlink()
         raise
 
     except Exception as e:
+        if file_path.exists():
+            file_path.unlink()
         db.rollback()
-        for file_path in uploaded_files:
-            if file_path.exists():
-                file_path.unlink()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error uploading media: {str(e)}"

@@ -49,7 +49,7 @@ class Post(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    media_count = Column(Integer, default=0)
+    media_url = Column(String, nullable=False)
     song_id = Column(Integer, nullable=True)
     title = Column(String, nullable=True)
     description = Column(Text, nullable=True)

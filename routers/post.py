@@ -62,7 +62,6 @@ async def create_post(db: db_dependency,
     if not media or not media.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No media provided")
 
-    # Validate media type
     if media.content_type not in [
         "image/jpeg", "image/png", "image/gif", "video/mp4", "image/webp",
         "image/avif", "image/svg+xml", "video/quicktime", "image/bmp",

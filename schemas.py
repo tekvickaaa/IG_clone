@@ -67,9 +67,6 @@ class PostResponse(BaseSchema):
             return f"{BASE_URL}{self.media_url}"
         return None
 
-    class Config:
-        from_attributes = True
-
 
 class FeedStoryResponse(BaseSchema):
     id: int

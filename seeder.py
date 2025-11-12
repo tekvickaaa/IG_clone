@@ -31,6 +31,7 @@ try:
                 user_id=random.randint(1, 15),
                 title=title,
                 description=description,
+                media_url=f"http://56.228.35.186/media/1/ec0f8cc590f7440aa14bb978733a7c43.png",
             ))
             db.refresh(Post)
 

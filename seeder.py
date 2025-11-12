@@ -22,19 +22,25 @@ try:
     db.commit()
     db.close()
 
-    for i in range(25):
-        title = ''.join(random.choices(string.ascii_letters + ' ', k=20))
-        description = ''.join(random.choices(string.ascii_letters + ' ', k=100))
+    try:
+        for i in range(25):
+            title = ''.join(random.choices(string.ascii_letters + ' ', k=20))
+            description = ''.join(random.choices(string.ascii_letters + ' ', k=100))
 
-        db.add(Post(
-            user_id=random.randint(1, 15),
-            title=title,
-            description=description,
-            media_url="/media/1/9700f804a90d45028c8f169ef386018b.png"
-        ))
+            db.add(Post(
+                user_id=random.randint(1, 15),
+                title=title,
+                description=description,
+            ))
+            db.refresh(Post)
 
-    db.commit()
-    db.close()
+        db.commit()
+        db.close()
+
+        db.query(Post).all()
+    except Exception as e:
+        print("Error seeding posts:", e)
+
 
     for i in range(10):
         followers_id = random.randint(1, 15)

@@ -83,8 +83,8 @@ class PostView(Base):
 
 class PostMedia(Base):
    __tablename__ = "post_media"
-   post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
-   media_url = Column(String, nullable=False)
+   post_id = Column(Integer, ForeignKey("posts.id"), nullable=False, primary_key=True)
+   media_url = Column(String, nullable=False, primary_key=True)
    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
    post = relationship("Post", back_populates="media")

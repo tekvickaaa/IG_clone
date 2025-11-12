@@ -144,7 +144,8 @@ async def follow(db: db_dependency, id: int, user: user_dependency):
         following_id=id
     )
     account.followers_count+=1
-    user.following_count+=1
+    active = db.query(User).filter(User.id == user["id"]).first()
+    active.following_count += 1
     db.add(new_follow)
     db.commit()
     db.refresh(new_follow)
@@ -161,7 +162,8 @@ async def unfollow_user(id: int, db: db_dependency, user: user_dependency):
     if not follow:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Not following this user")
     db.delete(follow)
-    user.following_count-=1
+    active = db.query(User).filter(User.id == user["id"]).first()
+    active.following_count -= 1
     account.followers_count-=1
     db.commit()
     return {"message": "Unfollowed successfully"}

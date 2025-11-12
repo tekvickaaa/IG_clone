@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict, computed_field
@@ -76,6 +76,13 @@ class FeedStoryResponse(BaseSchema):
     user_id: int
     media_url: str
     has_liked: bool
+    created_at: datetime
+    expires_at: datetime
 
 class StoryResponse(BaseSchema):
     id: int
+    highlight_id: Optional[int] = None
+    user_id: int
+    media_url: str
+    created_at: datetime
+    expires_at: datetime

@@ -60,7 +60,7 @@ class Post(Base):
     user = relationship("User", back_populates="posts")
     likes = relationship("PostLike", back_populates="post")
     post_views = relationship("PostView", back_populates="post")
-    media = relationship("Media", back_populates="post")
+    media = relationship("PostMedia", back_populates="post")
 
 class PostLike(Base):
     __tablename__ = "post_likes"

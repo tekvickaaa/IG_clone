@@ -4,6 +4,8 @@ from fastapi.params import Form
 from database import SessionLocal
 from starlette import status
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from models import Story, StoryLike, User, Follow
 from routers.auth import get_current_user
 from schemas import FeedStoryResponse, StoryResponse
@@ -46,7 +48,7 @@ async def get_all_stories(db: db_dependency):
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=StoryResponse)
 async def create_story(db: db_dependency,
                       user: user_dependency,
-                      song_id: str,
+                      song_id: int,
                       media: UploadFile = File(...),
                       ):
     if not user:
@@ -84,10 +86,52 @@ async def create_story(db: db_dependency,
     db.commit()
     db.refresh(new_story)
     return new_story
+
+
 @router.get("/following", response_model=list[FeedStoryResponse])
 async def get_following_stories(db: db_dependency, user: user_dependency):
-    following = db.query(Follow)
-    stories = db.query(Story).options(joinedload(Story.user)).filter(Story.user_id == user["id"]).all()
+    # Get IDs of users that current user follows
+    following_ids = db.query(Follow.following_id).filter(
+        Follow.follower_id == user["id"]
+    ).scalars().all()
+
+    if not following_ids:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No posts found")
+
+    stories = (
+        db.query(Story)
+        .options(joinedload(Story.user))
+        .filter(Story.user_id.in_(following_ids))
+        .order_by(Story.created_at.desc())
+        .all()
+    )
+
     if not stories:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No posts found")
-    return [story for story in stories]
+
+    story_ids = [story.id for story in stories]
+    liked_story_ids = set(
+        db.query(StoryLike.story_id)
+        .filter(
+            StoryLike.story_id.in_(story_ids),
+            StoryLike.user_id == user["id"]
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        {
+            "id": story.id,
+            "user_id": story.user_id,
+            "media_url": story.media_url,
+            "created_at": story.created_at,
+            "expires_at": story.expires_at,
+            "user": {
+                "id": story.user.id,
+                "username": story.user.username,
+                "pfp_url": story.user.pfp_url
+            },
+            "has_liked": story.id in liked_story_ids
+        }
+        for story in stories
+    ]

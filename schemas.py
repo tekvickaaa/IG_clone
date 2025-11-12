@@ -86,3 +86,15 @@ class StoryResponse(BaseSchema):
     media_url: str
     created_at: datetime
     expires_at: datetime
+
+    @computed_field
+    @property
+    def full_media_url(self) -> str | None:
+        if self.media_url:
+            if self.media_url.startswith('http'):
+                return self.media_url
+            return f"{BASE_URL}{self.media_url}"
+        return None
+
+    class Config:
+        from_attributes = True

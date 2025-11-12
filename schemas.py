@@ -79,7 +79,10 @@ class FeedStoryResponse(BaseSchema):
     created_at: datetime
     expires_at: datetime
 
-class StoryResponse(BaseSchema):
+
+class StoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     highlight_id: Optional[int] = None
     user_id: int
@@ -95,6 +98,3 @@ class StoryResponse(BaseSchema):
                 return self.media_url
             return f"{BASE_URL}{self.media_url}"
         return None
-
-    class Config:
-        from_attributes = True

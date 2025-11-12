@@ -90,35 +90,34 @@ async def create_story(db: db_dependency,
 
 @router.get("/following", response_model=list[FeedStoryResponse])
 async def get_following_stories(db: db_dependency, user: user_dependency):
-    # Get IDs of users that current user follows
-    following_ids = db.query(Follow.following_id).filter(
-        Follow.follower_id == user["id"]
+    following_ids = db.execute(
+        select(Follow.following_id).where(Follow.follower_id == user["id"])
     ).scalars().all()
 
     if not following_ids:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No posts found")
+        return []
 
-    stories = (
-        db.query(Story)
+    stories = db.execute(
+        select(Story)
         .options(joinedload(Story.user))
-        .filter(Story.user_id.in_(following_ids))
+        .where(Story.user_id.in_(following_ids))
         .order_by(Story.created_at.desc())
-        .all()
-    )
+    ).scalars().all()
 
     if not stories:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No posts found")
+        return []
 
     story_ids = [story.id for story in stories]
     liked_story_ids = set(
-        db.query(StoryLike.story_id)
-        .filter(
-            StoryLike.story_id.in_(story_ids),
-            StoryLike.user_id == user["id"]
-        )
-        .scalars()
-        .all()
+        db.execute(
+            select(StoryLike.story_id)
+            .where(
+                StoryLike.story_id.in_(story_ids),
+                StoryLike.user_id == user["id"]
+            )
+        ).scalars().all()
     )
+
     return [
         {
             "id": story.id,

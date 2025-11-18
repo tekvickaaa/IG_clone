@@ -91,7 +91,7 @@ async def create_post(db: db_dependency,
                     )
                 f.write(chunk)
 
-        media_url = f"/media/{user['id']}/{unique_name}"
+        media_url = f"http://56.228.35.186/media/{user['id']}/{unique_name}"
 
         new_post = Post(
             user_id=user["id"],

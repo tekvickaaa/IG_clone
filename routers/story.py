@@ -72,7 +72,7 @@ async def create_story(db: db_dependency,
 
         with open(file_path, "wb") as f:
             f.write(await media.read())
-        media_url = f"/media/{user['id']}/{unique_name}"
+        media_url = f"http://56.228.35.186/media/{user['id']}/{unique_name}"
     else:
         media_url = None
 

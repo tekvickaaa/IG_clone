@@ -88,7 +88,7 @@ async def create_story(db: db_dependency,
     return new_story
 
 
-@router.get("/following", response_model=list[FeedStoryResponse])
+@router.get("/following")
 async def get_following_stories(db: db_dependency, user: user_dependency):
     following_ids = db.execute(
         select(Follow.following_id).where(Follow.follower_id == user["id"])
@@ -122,7 +122,7 @@ async def get_following_stories(db: db_dependency, user: user_dependency):
         {
             "id": story.id,
             "user_id": story.user_id,
-            "media_url": story.media_url,
+            "media_url": story.media_url if story.media_url and story.media_url.startswith('http') else f"{BASE_URL}{story.media_url}" if story.media_url else None,
             "created_at": story.created_at,
             "expires_at": story.expires_at,
             "user": {

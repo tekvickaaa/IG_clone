@@ -107,7 +107,9 @@ async def set_song_id(user: user_dependency, db: db_dependency, new_song: str):
     db.commit()
     db.refresh(db_user)
     return db_user
-
+@router.get("/test")
+async def test_endpoint():
+    return {"message": "This a test endpoint for GitHub Webhooks."}
 @router.get("/{id}", response_model=UserResponse)
 async def get_user_by_id(id: int, db: db_dependency):
     account = db.query(User).filter(User.id == id).first()

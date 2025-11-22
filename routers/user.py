@@ -8,7 +8,7 @@ from database import SessionLocal
 from starlette import status
 from sqlalchemy.orm import Session, joinedload
 from models import User, Follow, Post
-from schemas import UserResponse, FollowResponse, PostResponse
+from schemas import UserResponse, FollowResponse, PostResponse, IsFollowingResponse
 from routers.auth import get_current_user
 
 router = APIRouter(
@@ -173,3 +173,16 @@ async def get_posts_by_user(id: int, db: db_dependency):
     if not posts:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No posts found for this user")
     return posts
+
+
+@router.get("/{id}/is_following", response_model=IsFollowingResponse)
+async def is_following(id: int, db: db_dependency, user: user_dependency):
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    
+    follow = db.query(Follow).filter(
+        Follow.follower_id == user["id"],
+        Follow.following_id == id
+    ).first()
+    
+    return {"is_following": bool(follow)}

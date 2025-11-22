@@ -10,6 +10,18 @@ BASE_URL = os.getenv("BASE_URL", "http://56.228.35.186")
 
 class BaseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+class IsFollowingResponse(BaseModel):
+    is_following: bool
+class PostCommentResponse(BaseModel):
+    id: int
+    post_id: int
+    user_id: int
+    content: str
+    created_at: datetime
+    username: str  
+
+    class Config:
+        orm_mode = True
 
 class Token(BaseModel):
     access_token: str
@@ -75,6 +87,7 @@ class FeedStoryResponse(BaseSchema):
     has_liked: bool
     created_at: datetime
     expires_at: datetime
+    has_seen: bool  
 
 
 class StoryResponse(BaseModel):
@@ -94,3 +107,41 @@ class StoryResponse(BaseModel):
                 return self.media_url
             return f"{BASE_URL}{self.media_url}"
         return None
+    
+
+class ReelCommentResponse(BaseModel):
+    id: int
+    reel_id: int
+    user_id: int
+    content: str
+    created_at: datetime
+    username: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+class ReelResponse(BaseModel):
+    id: int
+    user_id: int
+    description: Optional[str]
+    video_url: str
+    like_count: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    user: Optional[dict] = None
+
+    class Config:
+        orm_mode = True
+
+class ReelListItem(BaseModel):
+    id: int
+    user_id: int
+    description: Optional[str]
+    video_url: Optional[str]
+    like_count: int
+    comment_count: int
+    created_at: datetime
+    user: Optional[dict] = None
+
+    class Config:
+        orm_mode = True

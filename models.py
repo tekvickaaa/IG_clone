@@ -5,6 +5,64 @@ import datetime
 from sqlalchemy.sql.sqltypes import Interval, Boolean
 from database import Base
 
+class Reel(Base):
+    __tablename__ = "reels"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    description = Column(Text, nullable=True)
+    video_url = Column(String, nullable=False)
+    like_count = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User", back_populates="reels")
+    comments = relationship("ReelComment", back_populates="reel")
+    likes = relationship("ReelLike", back_populates="reel")
+
+class ReelLike(Base):
+    __tablename__ = "reel_likes"
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    reel_id = Column(Integer, ForeignKey("reels.id"), primary_key=True)
+    liked_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    reel = relationship("Reel", back_populates="likes")
+
+class ReelComment(Base):
+    __tablename__ = "reel_comments"
+    id = Column(Integer, primary_key=True)
+    reel_id = Column(Integer, ForeignKey("reels.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    reel = relationship("Reel", back_populates="comments")
+
+class PostComment(Base):
+    __tablename__ = "post_comments"
+
+    id = Column(Integer, primary_key=True)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User")
+    post = relationship("Post", back_populates="comments")
+
+class Message(Base):
+    __tablename__ = "messages"
+    id = Column(Integer, primary_key=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    receiver_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    content = Column(String, nullable=False)
+    type = Column(String, default="text") 
+    sent_at = Column(DateTime(timezone=True), server_default=func.now())
+    read = Column(Boolean, default=False)
+
+    sender = relationship("User", foreign_keys=[sender_id])
+    receiver = relationship("User", foreign_keys=[receiver_id])
 
 class Follow(Base):
     __tablename__ = "follows"
@@ -42,6 +100,7 @@ class User(Base):
     story_likes = relationship("StoryLike", back_populates="user")
     story_views = relationship("StoryView", back_populates="user")
     post_views = relationship("PostView", back_populates="user")
+    reels = relationship("Reel", back_populates="user")
 
 class Post(Base):
     __tablename__ = "posts"
@@ -56,7 +115,7 @@ class Post(Base):
     like_count = Column(Integer, default=0)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-
+    comments = relationship("PostComment", back_populates="post")
     user = relationship("User", back_populates="posts")
     likes = relationship("PostLike", back_populates="post")
     post_views = relationship("PostView", back_populates="post")

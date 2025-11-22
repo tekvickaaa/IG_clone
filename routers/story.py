@@ -6,7 +6,7 @@ from starlette import status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from models import Story, StoryLike, User, Follow
+from models import Story, StoryLike, StoryView, User, Follow
 from routers.auth import get_current_user
 from schemas import FeedStoryResponse, StoryResponse
 import os
@@ -87,9 +87,12 @@ async def create_story(db: db_dependency,
     db.refresh(new_story)
     return new_story
 
-
-@router.get("/following")
+@router.get("/following", response_model=list[FeedStoryResponse])
 async def get_following_stories(db: db_dependency, user: user_dependency):
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+  
     following_ids = db.execute(
         select(Follow.following_id).where(Follow.follower_id == user["id"])
     ).scalars().all()
@@ -97,6 +100,7 @@ async def get_following_stories(db: db_dependency, user: user_dependency):
     if not following_ids:
         return []
 
+  
     stories = db.execute(
         select(Story)
         .options(joinedload(Story.user))
@@ -108,6 +112,8 @@ async def get_following_stories(db: db_dependency, user: user_dependency):
         return []
 
     story_ids = [story.id for story in stories]
+
+  
     liked_story_ids = set(
         db.execute(
             select(StoryLike.story_id)
@@ -118,6 +124,18 @@ async def get_following_stories(db: db_dependency, user: user_dependency):
         ).scalars().all()
     )
 
+  
+    seen_story_ids = set(
+        db.execute(
+            select(StoryView.story_id)
+            .where(
+                StoryView.story_id.in_(story_ids),
+                StoryView.user_id == user["id"]
+            )
+        ).scalars().all()
+    )
+
+ 
     return [
         {
             "id": story.id,
@@ -130,7 +148,87 @@ async def get_following_stories(db: db_dependency, user: user_dependency):
                 "username": story.user.username,
                 "pfp_url": story.user.pfp_url
             },
-            "has_liked": story.id in liked_story_ids
+            "has_liked": story.id in liked_story_ids,
+            "has_seen": story.id in seen_story_ids
         }
         for story in stories
     ]
+@router.post("/{story_id}/like")
+async def like_story(story_id: int, db: db_dependency, user: user_dependency):
+  
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+
+    story = db.query(Story).filter(Story.id == story_id).first()
+    if not story:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Story not found")
+
+    existing_like = db.query(StoryLike).filter(
+        StoryLike.story_id == story_id,
+        StoryLike.user_id == user["id"]
+    ).first()
+
+    if existing_like:
+   
+        db.delete(existing_like)
+        db.commit()
+        return {"message": "Story unliked"}
+    else:
+        
+        new_like = StoryLike(user_id=user["id"], story_id=story_id)
+        db.add(new_like)
+        db.commit()
+        db.refresh(new_like)
+        return {"message": "Story liked"}
+    
+@router.post("/{story_id}/seen")
+async def mark_story_seen(story_id: int, db: db_dependency, user: user_dependency):
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    
+    story = db.query(Story).filter(Story.id == story_id).first()
+    if not story:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Story not found")
+
+    
+    existing_view = db.query(StoryView).filter(
+        StoryView.story_id == story_id,
+        StoryView.user_id == user["id"]
+    ).first()
+
+    if existing_view:
+        return {"message": "Story already seen"}
+
+    new_view = StoryView(user_id=user["id"], story_id=story_id)
+    db.add(new_view)
+    db.commit()
+    db.refresh(new_view)
+    return {"message": "Story marked as seen"}
+
+
+@router.delete("/{story_id}", status_code=200)
+async def delete_story(story_id: int, db: db_dependency, user: user_dependency):
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    story = db.query(Story).filter(Story.id == story_id).first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    if story.user_id != user["id"]:
+        raise HTTPException(status_code=403, detail="Not allowed")
+
+    if story.media_url:
+        try:
+            path = story.media_url.replace(f"{BASE_URL}/", "")
+            abs_path = BASE_DIR / path
+            if abs_path.exists():
+                abs_path.unlink()
+        except:
+            pass
+
+    db.delete(story)
+    db.commit()
+    return {"message": "Story deleted successfully"}

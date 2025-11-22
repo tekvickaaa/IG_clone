@@ -4,9 +4,9 @@ from fastapi.params import Form
 from database import SessionLocal
 from starlette import status
 from sqlalchemy.orm import Session, joinedload
-from models import Post, PostLike, User, PostMedia
+from models import Post,PostLike, User, PostMedia, PostComment
 from routers.auth import get_current_user
-from schemas import PostResponse
+from schemas import PostResponse,PostCommentResponse
 import os
 import uuid
 from pathlib import Path
@@ -173,6 +173,53 @@ async def like_post(db: db_dependency,
     db.add(post_like)
     db.commit()
     db.refresh(post)
+
 @router.post("/{post_id}/comment")
-async def comment_post():
-    pass
+async def comment_post(
+    post_id: int,
+    content: Annotated[str, Form(...)],
+    db: db_dependency,
+    user: user_dependency
+):
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    comment = PostComment(
+        post_id=post_id,
+        user_id=user["id"],
+        content=content
+    )
+
+    db.add(comment)
+    db.commit()
+    db.refresh(comment)
+
+    return {
+        "id": comment.id,
+        "post_id": comment.post_id,
+        "user_id": comment.user_id,
+        "content": comment.content,
+        "created_at": str(comment.created_at)
+    }
+
+@router.get("/{post_id}/comments", response_model=list[PostCommentResponse])
+async def get_comments(post_id: int, db: db_dependency):
+    comments = db.query(PostComment).options(joinedload(PostComment.user))\
+        .filter(PostComment.post_id == post_id)\
+        .order_by(PostComment.created_at).all()
+
+    return [
+        PostCommentResponse(
+            id=c.id,
+            post_id=c.post_id,
+            user_id=c.user_id,
+            content=c.content,
+            created_at=c.created_at,
+            username=c.user.username
+        )
+        for c in comments
+    ]

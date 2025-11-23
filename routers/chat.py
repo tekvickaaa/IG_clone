@@ -6,9 +6,9 @@ from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import Message, User
 
-
 router = APIRouter(tags=["chat"])
 connections: Dict[int, WebSocket] = {}
+
 
 def get_db():
     db = SessionLocal()
@@ -16,6 +16,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 @router.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: int):
@@ -25,10 +26,13 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
 
     db: Session = SessionLocal()
     try:
-        unread_msgs = db.query(Message).filter(
-            Message.receiver_id == user_id,
-            Message.read == False
-        ).order_by(Message.sent_at).all()
+      
+        unread_msgs = (
+            db.query(Message)
+            .filter(Message.receiver_id == user_id, Message.read == False)
+            .order_by(Message.sent_at)
+            .all()
+        )
 
         for msg in unread_msgs:
             await websocket.send_json({
@@ -40,13 +44,16 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
                 "sent_at": str(msg.sent_at)
             })
             msg.read = True
+
         db.commit()
 
+    
         while True:
             data = await websocket.receive_json()
             msg_type = data.get("type")
 
             if msg_type == "message":
+          
                 try:
                     new_msg = Message(
                         sender_id=int(data["sender_id"]),
@@ -71,24 +78,15 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
                     "sent_at": str(new_msg.sent_at),
                     "read": False
                 }
-                
-          
-                receiver_id = int(data["receiver_id"])
-                receiver_ws = connections.get(receiver_id)
+
+                receiver_ws = connections.get(new_msg.receiver_id)
                 if receiver_ws:
-                    try:
-                        await receiver_ws.send_json(message_payload)
-                    except Exception:
-                        pass
-                
+                    await receiver_ws.send_json(message_payload)
+
               
-                sender_id = int(data["sender_id"])
-                sender_ws = connections.get(sender_id)
+                sender_ws = connections.get(new_msg.sender_id)
                 if sender_ws:
-                    try:
-                        await sender_ws.send_json(message_payload)
-                    except Exception:
-                        pass
+                    await sender_ws.send_json(message_payload)
 
             elif msg_type == "read_receipt":
                 try:
@@ -96,6 +94,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
                     if msg:
                         msg.read = True
                         db.commit()
+
                         sender_ws = connections.get(msg.sender_id)
                         if sender_ws:
                             await sender_ws.send_json({
@@ -109,33 +108,43 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
         connections.pop(user_id, None)
         db.close()
 
+
 @router.get("/dm_previews/{user_id}")
 def get_dm_previews(user_id: int, db: Session = Depends(get_db)):
-    conv_user_ids = db.query(
-        Message.sender_id, Message.receiver_id
-    ).filter(
-        or_(Message.sender_id == user_id, Message.receiver_id == user_id)
-    ).all()
+    conv_user_ids = (
+        db.query(Message.sender_id, Message.receiver_id)
+        .filter(or_(Message.sender_id == user_id, Message.receiver_id == user_id))
+        .all()
+    )
 
-    partners = set()
-    for s_id, r_id in conv_user_ids:
-        partner_id = r_id if s_id == user_id else s_id
-        partners.add(partner_id)
+    partners = {
+        (r_id if s_id == user_id else s_id)
+        for s_id, r_id in conv_user_ids
+    }
 
     previews = []
     for partner_id in partners:
-        latest_msg = db.query(Message).filter(
-            or_(
-                (Message.sender_id == user_id) & (Message.receiver_id == partner_id),
-                (Message.sender_id == partner_id) & (Message.receiver_id == user_id)
+        latest_msg = (
+            db.query(Message)
+            .filter(
+                or_(
+                    (Message.sender_id == user_id) & (Message.receiver_id == partner_id),
+                    (Message.sender_id == partner_id) & (Message.receiver_id == user_id),
+                )
             )
-        ).order_by(desc(Message.sent_at)).first()
+            .order_by(desc(Message.sent_at))
+            .first()
+        )
 
-        unread_count = db.query(func.count(Message.id)).filter(
-            Message.sender_id == partner_id,
-            Message.receiver_id == user_id,
-            Message.read == False
-        ).scalar()
+        unread_count = (
+            db.query(func.count(Message.id))
+            .filter(
+                Message.sender_id == partner_id,
+                Message.receiver_id == user_id,
+                Message.read == False
+            )
+            .scalar()
+        )
 
         previews.append({
             "chat_with_id": partner_id,
@@ -148,21 +157,27 @@ def get_dm_previews(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/messages/{user_id}/{partner_id}", response_model=list[MessageResponse])
-def get_messages(
-    user_id: int,
-    partner_id: int,
-    db: Session = Depends(get_db)
-):
-    messages = db.query(Message).filter(
-        or_(
-            (Message.sender_id == user_id) & (Message.receiver_id == partner_id),
-            (Message.sender_id == partner_id) & (Message.receiver_id == user_id)
+def get_messages(user_id: int, partner_id: int, db: Session = Depends(get_db)):
+    messages = (
+        db.query(Message)
+        .filter(
+            or_(
+                (Message.sender_id == user_id) & (Message.receiver_id == partner_id),
+                (Message.sender_id == partner_id) & (Message.receiver_id == user_id),
+            )
         )
-    ).order_by(Message.sent_at.asc()).all()
+        .order_by(Message.sent_at.asc())
+        .all()
+    )
 
+  
+    changed = False
     for msg in messages:
-        if msg.receiver_id == user_id and msg.read is False:
+        if msg.receiver_id == user_id and not msg.read:
             msg.read = True
-    db.commit()
+            changed = True
+
+    if changed:
+        db.commit()
 
     return messages

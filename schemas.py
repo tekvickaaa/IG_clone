@@ -79,6 +79,22 @@ class PostResponse(BaseSchema):
             return f"{BASE_URL}{self.media_url}"
         return None
 
+class UserShortResponse(BaseModel):
+    id: int
+    username: str
+    pfp_url: Optional[str] = None
+
+    @computed_field
+    @property
+    def full_pfp_url(self) -> str | None:
+        if self.pfp_url:
+            if self.pfp_url.startswith("http"):
+                return self.pfp_url
+            return f"{BASE_URL}{self.pfp_url}"
+        return None
+
+    class Config:
+        from_attributes = True
 
 class FeedStoryResponse(BaseSchema):
     id: int
@@ -88,7 +104,7 @@ class FeedStoryResponse(BaseSchema):
     created_at: datetime
     expires_at: datetime
     has_seen: bool  
-
+    user: Optional[UserShortResponse] = None
 
 class StoryResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -145,3 +161,15 @@ class ReelListItem(BaseModel):
 
     class Config:
         orm_mode = True
+
+class MessageResponse(BaseModel):
+    id: int
+    sender_id: int
+    receiver_id: int
+    content: str
+    type: str
+    read: bool
+    sent_at: datetime
+
+    class Config:
+        from_attributes = True

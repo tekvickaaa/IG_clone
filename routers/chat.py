@@ -1,5 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from typing import Dict
+from schemas import MessageResponse
 from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 from database import SessionLocal
@@ -132,3 +133,24 @@ def get_dm_previews(user_id: int, db: Session = Depends(get_db)):
         })
 
     return previews
+
+
+@router.get("/messages/{user_id}/{partner_id}", response_model=list[MessageResponse])
+def get_messages(
+    user_id: int,
+    partner_id: int,
+    db: Session = Depends(get_db)
+):
+    messages = db.query(Message).filter(
+        or_(
+            (Message.sender_id == user_id) & (Message.receiver_id == partner_id),
+            (Message.sender_id == partner_id) & (Message.receiver_id == user_id)
+        )
+    ).order_by(Message.sent_at.asc()).all()
+
+    for msg in messages:
+        if msg.receiver_id == user_id and msg.read is False:
+            msg.read = True
+    db.commit()
+
+    return messages

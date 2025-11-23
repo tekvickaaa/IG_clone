@@ -7,7 +7,6 @@ from database import SessionLocal
 from models import Message, User
 
 
-
 router = APIRouter(tags=["chat"])
 connections: Dict[int, WebSocket] = {}
 
@@ -63,18 +62,31 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
                     db.rollback()
                     continue
 
+                message_payload = {
+                    "id": new_msg.id,
+                    "sender_id": new_msg.sender_id,
+                    "receiver_id": new_msg.receiver_id,
+                    "content": new_msg.content,
+                    "type": new_msg.type,
+                    "sent_at": str(new_msg.sent_at),
+                    "read": False
+                }
+                
+          
                 receiver_id = int(data["receiver_id"])
                 receiver_ws = connections.get(receiver_id)
                 if receiver_ws:
                     try:
-                        await receiver_ws.send_json({
-                            "id": new_msg.id,
-                            "sender_id": new_msg.sender_id,
-                            "receiver_id": new_msg.receiver_id,
-                            "content": new_msg.content,
-                            "type": new_msg.type,
-                            "sent_at": str(new_msg.sent_at)
-                        })
+                        await receiver_ws.send_json(message_payload)
+                    except Exception:
+                        pass
+                
+              
+                sender_id = int(data["sender_id"])
+                sender_ws = connections.get(sender_id)
+                if sender_ws:
+                    try:
+                        await sender_ws.send_json(message_payload)
                     except Exception:
                         pass
 

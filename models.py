@@ -115,11 +115,14 @@ class Post(Base):
     like_count = Column(Integer, default=0)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    comments = relationship("PostComment", back_populates="post")
+    
+    
     user = relationship("User", back_populates="posts")
-    likes = relationship("PostLike", back_populates="post")
-    post_views = relationship("PostView", back_populates="post")
-    media = relationship("PostMedia", back_populates="post")
+    
+    comments = relationship("PostComment", back_populates="post", cascade="all, delete-orphan")
+    likes = relationship("PostLike", back_populates="post", cascade="all, delete-orphan")
+    media = relationship("PostMedia", back_populates="post", cascade="all, delete-orphan")
+    post_views = relationship("PostView", back_populates="post", cascade="all, delete-orphan")
 
 class PostLike(Base):
     __tablename__ = "post_likes"

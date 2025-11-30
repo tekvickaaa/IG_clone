@@ -1,4 +1,3 @@
-# routers/reels.py
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from typing import Annotated
 from fastapi.params import Form
@@ -249,7 +248,8 @@ async def get_reel_comments(reel_id: int, db: db_dependency):
             user_id=c.user_id,
             content=c.content,
             created_at=c.created_at,
-            username=c.user.username if c.user else None
+            username=c.user.username if c.user else None,
+            pfp_url=c.user.pfp_url if c.user else None
         )
         for c in comments
     ]

@@ -56,28 +56,13 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 class FollowResponse(BaseSchema):
     follower_id: int
     following_id: int
     followed_at: datetime
 
-class PostResponse(BaseSchema):
-    id: int
-    user_id: int
-    media_url: str
-    title: Optional[str] = None
-    description: Optional[str] = None
-    like_count: int
-    created_at: datetime
 
-    @computed_field
-    @property
-    def full_media_url(self) -> str | None:
-        if self.media_url:
-            if self.media_url.startswith('http'):
-                return self.media_url
-            return f"{BASE_URL}{self.media_url}"
-        return None
 
 class UserShortResponse(BaseModel):
     id: int
@@ -95,6 +80,28 @@ class UserShortResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class PostResponse(BaseSchema):
+    id: int
+    user_id: int
+    media_url: str
+    title: Optional[str] = None
+    description: Optional[str] = None
+    like_count: int
+    created_at: datetime
+    user: Optional[UserShortResponse] = None
+    has_liked: bool = False
+    comment_count: int = 0
+
+    @computed_field
+    @property
+    def full_media_url(self) -> str | None:
+        if self.media_url:
+            if self.media_url.startswith('http'):
+                return self.media_url
+            return f"{BASE_URL}{self.media_url}"
+        return None
 
 class FeedStoryResponse(BaseSchema):
     id: int
@@ -132,6 +139,9 @@ class ReelCommentResponse(BaseModel):
     content: str
     created_at: datetime
     username: Optional[str] = None
+    pfp_url: Optional[str] = None  
+
+  
 
     class Config:
         orm_mode = True

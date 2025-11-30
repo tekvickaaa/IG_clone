@@ -5,7 +5,10 @@ from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import Message, User
-
+import os
+from dotenv import load_dotenv
+load_dotenv()
+BASE_URL = os.getenv("BASE_URL", "http://56.228.35.186")
 router = APIRouter(tags=["chat"])
 connections: Dict[int, WebSocket] = {}
 
@@ -108,7 +111,6 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
         connections.pop(user_id, None)
         db.close()
 
-
 @router.get("/dm_previews/{user_id}")
 def get_dm_previews(user_id: int, db: Session = Depends(get_db)):
     conv_user_ids = (
@@ -124,6 +126,9 @@ def get_dm_previews(user_id: int, db: Session = Depends(get_db)):
 
     previews = []
     for partner_id in partners:
+
+        partner = db.query(User).filter(User.id == partner_id).first()
+
         latest_msg = (
             db.query(Message)
             .filter(
@@ -148,12 +153,20 @@ def get_dm_previews(user_id: int, db: Session = Depends(get_db)):
 
         previews.append({
             "chat_with_id": partner_id,
+            "username": partner.username if partner else None,
+            "pfp_url": partner.pfp_url if partner else None,
+            "full_pfp_url": (
+                partner.pfp_url
+                if (partner and partner.pfp_url and partner.pfp_url.startswith("http"))
+                else (f"{BASE_URL}{partner.pfp_url}" if partner and partner.pfp_url else None)
+            ),
             "latest_message": latest_msg.content if latest_msg else None,
             "latest_sent_at": str(latest_msg.sent_at) if latest_msg else None,
             "unread_count": unread_count
         })
-
+    previews.sort(key=lambda x: x["latest_sent_at"] or "", reverse=True)
     return previews
+
 
 
 @router.get("/messages/{user_id}/{partner_id}", response_model=list[MessageResponse])

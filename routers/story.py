@@ -87,12 +87,12 @@ async def create_story(db: db_dependency,
     db.refresh(new_story)
     return new_story
 
+
 @router.get("/following", response_model=list[FeedStoryResponse])
 async def get_following_stories(db: db_dependency, user: user_dependency):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
-  
     following_ids = db.execute(
         select(Follow.following_id).where(Follow.follower_id == user["id"])
     ).scalars().all()
@@ -100,7 +100,6 @@ async def get_following_stories(db: db_dependency, user: user_dependency):
     if not following_ids:
         return []
 
-  
     stories = db.execute(
         select(Story)
         .options(joinedload(Story.user))
@@ -113,7 +112,6 @@ async def get_following_stories(db: db_dependency, user: user_dependency):
 
     story_ids = [story.id for story in stories]
 
-  
     liked_story_ids = set(
         db.execute(
             select(StoryLike.story_id)
@@ -124,7 +122,6 @@ async def get_following_stories(db: db_dependency, user: user_dependency):
         ).scalars().all()
     )
 
-  
     seen_story_ids = set(
         db.execute(
             select(StoryView.story_id)
@@ -135,8 +132,7 @@ async def get_following_stories(db: db_dependency, user: user_dependency):
         ).scalars().all()
     )
 
- 
-    return [
+    story_list = [
         {
             "id": story.id,
             "user_id": story.user_id,
@@ -153,6 +149,12 @@ async def get_following_stories(db: db_dependency, user: user_dependency):
         }
         for story in stories
     ]
+
+    story_list.sort(key=lambda x: (x["has_seen"], x["expires_at"]), reverse=True)
+
+    return story_list
+
+
 @router.post("/{story_id}/like")
 async def like_story(story_id: int, db: db_dependency, user: user_dependency):
   

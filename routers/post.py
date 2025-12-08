@@ -55,20 +55,31 @@ async def get_all_posts(
     results = []
 
     for post in posts:
-        post.has_liked = db.query(PostLike).filter(
+        has_liked = db.query(PostLike).filter(
             PostLike.post_id == post.id,
             PostLike.user_id == user["id"]
         ).first() is not None
 
-        post.comment_count = db.query(PostComment).filter(
+        comment_count = db.query(PostComment).filter(
             PostComment.post_id == post.id
         ).count()
 
-        post.like_count = db.query(PostLike).filter(
+        like_count = db.query(PostLike).filter(
             PostLike.post_id == post.id
         ).count()
 
-        results.append(post)
+        results.append(PostResponse(
+            id=post.id,
+            user_id=post.user_id,
+            title=post.title,
+            description=post.description,
+            media_url=post.media_url,
+            created_at=post.created_at,
+            username=post.user.username,
+            has_liked=has_liked,
+            comment_count=comment_count,
+            like_count=like_count
+        ))
 
     return results
 

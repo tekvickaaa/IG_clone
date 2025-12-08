@@ -39,33 +39,38 @@ MAX_VIDEO_SIZE = 400 * 1024 * 1024
 
 
 @router.get("/", response_model=list[PostResponse])
-async def get_all_posts(db: db_dependency, user: user_dependency):
-    posts = (
-        db.query(Post)
-        .options(joinedload(Post.user))
-        .order_by(Post.created_at.desc())
-        .all()
-    )
+async def get_all_posts(
+    db: db_dependency,
+    user: user_dependency,
+    exclude_user: bool = Query(False, description="Exclude current user's posts")
+):
+    query = db.query(Post).options(joinedload(Post.user))
+
+    if exclude_user:
+        query = query.filter(Post.user_id != user["id"])
+
+    query = query.order_by(Post.created_at.desc())
+    posts = query.all()
 
     results = []
 
     for post in posts:
-        has_liked = db.query(PostLike).filter(
+        post.has_liked = db.query(PostLike).filter(
             PostLike.post_id == post.id,
             PostLike.user_id == user["id"]
         ).first() is not None
 
-        comment_count = db.query(PostComment).filter(
+        post.comment_count = db.query(PostComment).filter(
             PostComment.post_id == post.id
         ).count()
 
-        post.has_liked = has_liked
-        post.comment_count = comment_count
+        post.like_count = db.query(PostLike).filter(
+            PostLike.post_id == post.id
+        ).count()
 
         results.append(post)
 
     return results
-
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=PostResponse)
 async def create_post(
@@ -144,39 +149,6 @@ async def create_post(
             file_path.unlink()
         db.rollback()
         raise
-
-
-
-@router.get("/feed", response_model=list[PostResponse])
-async def get_feed(db: db_dependency, user: user_dependency, limit: int = 10, offset: int = 0):
-    posts = (
-        db.query(Post)
-        .options(joinedload(Post.user))
-        .filter(Post.user_id != user["id"])
-        .order_by(Post.created_at.desc())
-        .limit(limit)
-        .offset(offset)
-        .all()
-    )
-
-    for post in posts:
-
-        post.has_liked = db.query(PostLike).filter(
-            PostLike.post_id == post.id,
-            PostLike.user_id == user["id"]
-        ).first() is not None
-
-
-        post.comment_count = db.query(PostComment).filter(
-            PostComment.post_id == post.id
-        ).count()
-
-
-        post.like_count = db.query(PostLike).filter(
-            PostLike.post_id == post.id
-        ).count()
-
-    return posts
 
 
 

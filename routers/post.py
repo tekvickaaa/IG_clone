@@ -145,42 +145,6 @@ async def create_post(
         db.rollback()
         raise
 
-@router.get("/feed", response_model=list[PostResponse])
-async def get_feed(
-    db: db_dependency,
-    user: user_dependency,
-    limit: int = Query(10, ge=1, le=50, description="Number of posts to return"),
-):
-    """
-    Get posts feed excluding current user's posts, limited to newest posts.
-    """
-    posts = (
-        db.query(Post)
-        .options(joinedload(Post.user))
-        .filter(Post.user_id != user["id"])  
-        .order_by(Post.created_at.desc())    
-        .limit(limit)
-        .all()
-    )
-
-    results = []
-
-    for post in posts:
-        has_liked = db.query(PostLike).filter(
-            PostLike.post_id == post.id,
-            PostLike.user_id == user["id"]
-        ).first() is not None
-
-        comment_count = db.query(PostComment).filter(
-            PostComment.post_id == post.id
-        ).count()
-
-        post.has_liked = has_liked
-        post.comment_count = comment_count
-
-        results.append(post)
-
-    return results
 
 @router.get("/{post_id}", response_model=PostResponse)
 async def get_post(db: db_dependency, post_id: int, user: user_dependency):
@@ -210,7 +174,36 @@ async def get_post(db: db_dependency, post_id: int, user: user_dependency):
 
 
 
+router.get("/feed", response_model=list[PostResponse])
+async def get_feed(db: db_dependency, user: user_dependency, limit: int = 10, offset: int = 0):
+    posts = (
+        db.query(Post)
+        .options(joinedload(Post.user))
+        .filter(Post.user_id != user["id"])
+        .order_by(Post.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
 
+    for post in posts:
+
+        post.has_liked = db.query(PostLike).filter(
+            PostLike.post_id == post.id,
+            PostLike.user_id == user["id"]
+        ).first() is not None
+
+
+        post.comment_count = db.query(PostComment).filter(
+            PostComment.post_id == post.id
+        ).count()
+
+
+        post.like_count = db.query(PostLike).filter(
+            PostLike.post_id == post.id
+        ).count()
+
+    return posts
 
 @router.delete("/{post_id}")
 async def delete_post(db: db_dependency, post_id: int, user: user_dependency):

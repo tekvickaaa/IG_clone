@@ -145,35 +145,6 @@ async def create_post(
         db.rollback()
         raise
 
-
-@router.get("/{post_id}", response_model=PostResponse)
-async def get_post(db: db_dependency, post_id: int, user: user_dependency):
-    post = (
-        db.query(Post)
-        .options(joinedload(Post.user))
-        .filter(Post.id == post_id)
-        .first()
-    )
-
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-
-    has_liked = db.query(PostLike).filter(
-        PostLike.post_id == post_id,
-        PostLike.user_id == user["id"]
-    ).first() is not None
-
-    comment_count = db.query(PostComment).filter(
-        PostComment.post_id == post_id
-    ).count()
-
-    post.has_liked = has_liked
-    post.comment_count = comment_count
-
-    return post
-
-
-
 @router.get("/feed", response_model=list[PostResponse])
 async def get_feed(
     db: db_dependency,
@@ -210,6 +181,35 @@ async def get_feed(
         results.append(post)
 
     return results
+
+@router.get("/{post_id}", response_model=PostResponse)
+async def get_post(db: db_dependency, post_id: int, user: user_dependency):
+    post = (
+        db.query(Post)
+        .options(joinedload(Post.user))
+        .filter(Post.id == post_id)
+        .first()
+    )
+
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    has_liked = db.query(PostLike).filter(
+        PostLike.post_id == post_id,
+        PostLike.user_id == user["id"]
+    ).first() is not None
+
+    comment_count = db.query(PostComment).filter(
+        PostComment.post_id == post_id
+    ).count()
+
+    post.has_liked = has_liked
+    post.comment_count = comment_count
+
+    return post
+
+
+
 
 
 @router.delete("/{post_id}")

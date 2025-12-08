@@ -52,36 +52,18 @@ async def get_all_posts(
     query = query.order_by(Post.created_at.desc())
     posts = query.all()
 
-    results = []
-
     for post in posts:
-        has_liked = db.query(PostLike).filter(
+
+        post.has_liked = db.query(PostLike).filter(
             PostLike.post_id == post.id,
             PostLike.user_id == user["id"]
         ).first() is not None
 
-        comment_count = db.query(PostComment).filter(
+        post.comment_count = db.query(PostComment).filter(
             PostComment.post_id == post.id
         ).count()
 
-        like_count = db.query(PostLike).filter(
-            PostLike.post_id == post.id
-        ).count()
-
-        results.append(PostResponse(
-            id=post.id,
-            user_id=post.user_id,
-            title=post.title,
-            description=post.description,
-            media_url=post.media_url,
-            created_at=post.created_at,
-            username=post.user.username,
-            has_liked=has_liked,
-            comment_count=comment_count,
-            like_count=like_count
-        ))
-
-    return results
+    return posts
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=PostResponse)
 async def create_post(

@@ -263,3 +263,42 @@ async def get_comments(post_id: int, db: db_dependency):
         )
         for c in comments
     ]
+
+from fastapi import Query
+
+@router.get("/feed", response_model=list[PostResponse])
+async def get_feed(
+    db: db_dependency,
+    user: user_dependency,
+    limit: int = Query(10, ge=1, le=50, description="Number of posts to return"),
+):
+    """
+    Get posts feed excluding current user's posts, limited to newest posts.
+    """
+    posts = (
+        db.query(Post)
+        .options(joinedload(Post.user))
+        .filter(Post.user_id != user["id"])  
+        .order_by(Post.created_at.desc())    
+        .limit(limit)
+        .all()
+    )
+
+    results = []
+
+    for post in posts:
+        has_liked = db.query(PostLike).filter(
+            PostLike.post_id == post.id,
+            PostLike.user_id == user["id"]
+        ).first() is not None
+
+        comment_count = db.query(PostComment).filter(
+            PostComment.post_id == post.id
+        ).count()
+
+        post.has_liked = has_liked
+        post.comment_count = comment_count
+
+        results.append(post)
+
+    return results

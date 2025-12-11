@@ -168,24 +168,6 @@ async def create_reel(
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error uploading video: {e}")
 
-@router.delete("/delete_all")
-async def delete_all_reels(db: db_dependency, user: user_dependency):
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-
-    try:
-
-        db.query(ReelComment).delete(synchronize_session=False)
-        db.query(ReelLike).delete(synchronize_session=False)
-
-        deleted = db.query(Reel).delete(synchronize_session=False)
-        db.commit()
-        return {"message": f"Deleted {deleted} reels successfully"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-
 
 @router.delete("/{reel_id}")
 async def delete_reel(reel_id: int, db: db_dependency, user: user_dependency):

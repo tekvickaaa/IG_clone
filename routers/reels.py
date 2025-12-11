@@ -173,21 +173,15 @@ async def delete_all_reels(db: db_dependency, user: user_dependency):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
-    reels = db.query(Reel).all()
-    for reel in reels:
-
-        if reel.video_url:
-            try:
-                path = reel.video_url.replace(f"{BASE_URL}/", "")
-                abs_path = BASE_DIR / path
-                if abs_path.exists():
-                    abs_path.unlink()
-            except:
-                pass
-        db.delete(reel)
-    
-    db.commit()
-    return {"message": f"Deleted {len(reels)} reels successfully"}
+    try:
+        reels = db.query(Reel).all()
+        for reel in reels:
+            db.delete(reel)
+        db.commit()
+        return {"message": f"Deleted {len(reels)} reels successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.delete("/{reel_id}")

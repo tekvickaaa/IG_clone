@@ -168,6 +168,28 @@ async def create_reel(
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error uploading video: {e}")
 
+@router.delete("/delete_all")
+async def delete_all_reels(db: db_dependency, user: user_dependency):
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    reels = db.query(Reel).all()
+    for reel in reels:
+
+        if reel.video_url:
+            try:
+                path = reel.video_url.replace(f"{BASE_URL}/", "")
+                abs_path = BASE_DIR / path
+                if abs_path.exists():
+                    abs_path.unlink()
+            except:
+                pass
+        db.delete(reel)
+    
+    db.commit()
+    return {"message": f"Deleted {len(reels)} reels successfully"}
+
+
 @router.delete("/{reel_id}")
 async def delete_reel(reel_id: int, db: db_dependency, user: user_dependency):
     if not user:
@@ -254,23 +276,3 @@ async def get_reel_comments(reel_id: int, db: db_dependency):
         for c in comments
     ]
 
-@router.delete("/delete_all")
-async def delete_all_reels(db: db_dependency, user: user_dependency):
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
-
-    reels = db.query(Reel).all()
-    for reel in reels:
-
-        if reel.video_url:
-            try:
-                path = reel.video_url.replace(f"{BASE_URL}/", "")
-                abs_path = BASE_DIR / path
-                if abs_path.exists():
-                    abs_path.unlink()
-            except:
-                pass
-        db.delete(reel)
-    
-    db.commit()
-    return {"message": f"Deleted {len(reels)} reels successfully"}

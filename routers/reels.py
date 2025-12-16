@@ -218,8 +218,17 @@ async def like_reel(reel_id: int, db: db_dependency, user: user_dependency):
         db.refresh(reel)
         return {"message": "Reel liked", "like_count": reel.like_count}
 
-@router.post("/{reel_id}/comment")
-async def comment_reel(reel_id: int, content: Annotated[str, Form(...)], db: db_dependency, user: user_dependency):
+ @router.post(
+    "/{reel_id}/comment",
+    response_model=ReelCommentResponse,
+    status_code=status.HTTP_201_CREATED
+)
+async def comment_reel(
+    reel_id: int,
+    content: Annotated[str, Form(...)],
+    db: db_dependency,
+    user: user_dependency
+):
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
@@ -227,17 +236,32 @@ async def comment_reel(reel_id: int, content: Annotated[str, Form(...)], db: db_
     if not reel:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reel not found")
 
-    comment = ReelComment(reel_id=reel_id, user_id=user["id"], content=content)
+    comment = ReelComment(
+        reel_id=reel_id,
+        user_id=user["id"],
+        content=content
+    )
     db.add(comment)
     db.commit()
-    db.refresh(comment)
-    return {
-        "id": comment.id,
-        "reel_id": comment.reel_id,
-        "user_id": comment.user_id,
-        "content": comment.content,
-        "created_at": str(comment.created_at)
-    }
+
+
+    comment = (
+        db.query(ReelComment)
+        .options(joinedload(ReelComment.user))
+        .filter(ReelComment.id == comment.id)
+        .first()
+    )
+
+    return ReelCommentResponse(
+        id=comment.id,
+        reel_id=comment.reel_id,
+        user_id=comment.user_id,
+        content=comment.content,
+        created_at=comment.created_at,
+        username=comment.user.username,
+        pfp_url=comment.user.pfp_url
+    )
+
 
 @router.get("/{reel_id}/comments", response_model=list[ReelCommentResponse])
 async def get_reel_comments(reel_id: int, db: db_dependency):

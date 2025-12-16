@@ -4,11 +4,14 @@ import uuid
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from typing import Annotated
+
+from sqlalchemy.sql.functions import func
+
 from database import SessionLocal
 from starlette import status
 from sqlalchemy.orm import Session, joinedload
-from models import User, Follow, Post
-from schemas import UserResponse, FollowResponse, PostResponse, IsFollowingResponse
+from models import User, Follow, Post, Reel, ReelComment
+from schemas import UserResponse, FollowResponse, PostResponse, IsFollowingResponse, ReelListItem
 from routers.auth import get_current_user
 
 router = APIRouter(
@@ -186,3 +189,38 @@ async def is_following(id: int, db: db_dependency, user: user_dependency):
     ).first()
     
     return {"is_following": bool(follow)}
+
+@router.get("/{id}/reels", response_model=list[ReelListItem])
+async def get_reels_by_user(id: int, db: db_dependency, user: user_dependency):
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    account = db.query(User).filter(User.id == id).first()
+    if not account:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    reels = db.query(Reel).options(joinedload(Reel.user)).filter(Reel.user_id == id).all()
+    if not reels:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No reels found for this user")
+
+    counts = (
+        db.query(ReelComment.reel_id, func.count(ReelComment.id))
+        .group_by(ReelComment.reel_id)
+        .all()
+    )
+    comment_map = {r[0]: r[1] for r in counts}
+
+    return [
+        {
+            "id": r.id,
+            "user_id": r.user_id,
+            "description": r.description,
+            "video_url": r.video_url if r.video_url and r.video_url.startswith("http") else (
+                f"{BASE_URL}{r.video_url}" if r.video_url else None),
+            "like_count": r.like_count,
+            "comment_count": comment_map.get(r.id, 0),
+            "created_at": r.created_at,
+            "user": {"id": r.user.id, "username": r.user.username, "pfp_url": r.user.pfp_url},
+            "has_liked": user["id"] in r.like
+        }
+        for r in reels
+    ]

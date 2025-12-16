@@ -218,7 +218,7 @@ async def like_reel(reel_id: int, db: db_dependency, user: user_dependency):
         db.refresh(reel)
         return {"message": "Reel liked", "like_count": reel.like_count}
 
- @router.post(
+@router.post(
     "/{reel_id}/comment",
     response_model=ReelCommentResponse,
     status_code=status.HTTP_201_CREATED
@@ -236,6 +236,7 @@ async def comment_reel(
     if not reel:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reel not found")
 
+
     comment = ReelComment(
         reel_id=reel_id,
         user_id=user["id"],
@@ -243,23 +244,28 @@ async def comment_reel(
     )
     db.add(comment)
     db.commit()
+    db.refresh(comment)
 
 
-    comment = (
+    comment_with_user = (
         db.query(ReelComment)
         .options(joinedload(ReelComment.user))
         .filter(ReelComment.id == comment.id)
         .first()
     )
 
+    if not comment_with_user or not comment_with_user.user:
+        raise HTTPException(status_code=500, detail="Failed to load comment user")
+
+
     return ReelCommentResponse(
-        id=comment.id,
-        reel_id=comment.reel_id,
-        user_id=comment.user_id,
-        content=comment.content,
-        created_at=comment.created_at,
-        username=comment.user.username,
-        pfp_url=comment.user.pfp_url
+        id=comment_with_user.id,
+        reel_id=comment_with_user.reel_id,
+        user_id=comment_with_user.user_id,
+        content=comment_with_user.content,
+        created_at=comment_with_user.created_at,
+        username=comment_with_user.user.username,
+        pfp_url=comment_with_user.user.pfp_url
     )
 
 

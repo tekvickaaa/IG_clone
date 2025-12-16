@@ -174,6 +174,26 @@ async def create_reel(
         db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error uploading video: {e}")
 
+@router.get("/{reel_id}", response_model=ReelResponse)
+async def get_reel(reel_id: int, db: db_dependency, user: user_dependency):
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    reel = db.query(Reel).filter(Reel.id == reel_id).first()
+    if not reel:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reel not found")
+
+    return {
+        "id": reel.id,
+        "user_id": reel.user_id,
+        "description": reel.description,
+        "video_url": reel.video_url,
+        "like_count": reel.like_count,
+        "created_at": reel.created_at,
+        "updated_at": reel.updated_at,
+        "user": {"id": reel.user.id, "username": reel.user.username, "pfp_url": reel.user.pfp_url},
+        "has_liked": user["id"] in reel.like
+    }
 
 @router.delete("/{reel_id}")
 async def delete_reel(reel_id: int, db: db_dependency, user: user_dependency):

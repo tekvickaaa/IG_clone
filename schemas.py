@@ -139,9 +139,7 @@ class ReelCommentResponse(BaseModel):
     content: str
     created_at: datetime
     username: Optional[str] = None
-    pfp_url: Optional[str] = None  
-
-  
+    pfp_url: Optional[str] = None
 
     class Config:
         orm_mode = True
@@ -155,6 +153,7 @@ class ReelResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
     user: Optional[dict] = None
+    has_liked: bool = False
 
     class Config:
         orm_mode = True
@@ -168,6 +167,7 @@ class ReelListItem(BaseModel):
     comment_count: int
     created_at: datetime
     user: Optional[dict] = None
+    has_liked: bool = False
 
     class Config:
         orm_mode = True

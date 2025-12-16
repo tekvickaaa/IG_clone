@@ -39,7 +39,10 @@ MAX_VIDEO_SIZE = 400 * 1024 * 1024
 ALLOWED_VIDEO_MIME = "video/mp4"
 
 @router.get("/", response_model=list[ReelListItem])
-async def get_all_reels(db: db_dependency):
+async def get_all_reels(db: db_dependency, user: user_dependency):
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
     reels = (
         db.query(Reel)
         .options(joinedload(Reel.user))
@@ -63,13 +66,14 @@ async def get_all_reels(db: db_dependency):
             "like_count": r.like_count,
             "comment_count": comment_map.get(r.id, 0),
             "created_at": r.created_at,
-            "user": {"id": r.user.id, "username": r.user.username, "pfp_url": r.user.pfp_url}
+            "user": {"id": r.user.id, "username": r.user.username, "pfp_url": r.user.pfp_url},
+            "has_liked": user["id"] in r.like
         }
         for r in reels
     ]
 
 @router.get("/explore", response_model=list[ReelListItem])
-async def get_explore_reels(db: db_dependency, limit: int = 20):
+async def get_explore_reels(db: db_dependency, user: user_dependency, limit: int = 20):
     results = (
         db.execute(
             select(Reel)
@@ -97,7 +101,8 @@ async def get_explore_reels(db: db_dependency, limit: int = 20):
             "like_count": r.like_count,
             "comment_count": comment_map.get(r.id, 0),
             "created_at": r.created_at,
-            "user": {"id": r.user.id, "username": r.user.username, "pfp_url": r.user.pfp_url}
+            "user": {"id": r.user.id, "username": r.user.username, "pfp_url": r.user.pfp_url},
+            "has_liked": user["id"] in r.like
         }
         for r in results
     ]
@@ -153,7 +158,8 @@ async def create_reel(
             "like_count": new_reel.like_count,
             "created_at": new_reel.created_at,
             "updated_at": new_reel.updated_at,
-            "user": {"id": new_reel.user.id, "username": new_reel.user.username, "pfp_url": new_reel.user.pfp_url}
+            "user": {"id": new_reel.user.id, "username": new_reel.user.username, "pfp_url": new_reel.user.pfp_url},
+            "has_liked": user["id"] in new_reel.like
         }
 
     except HTTPException:

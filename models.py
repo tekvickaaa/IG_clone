@@ -19,6 +19,10 @@ class Reel(Base):
     comments = relationship("ReelComment", back_populates="reel")
     likes = relationship("ReelLike", back_populates="reel")
 
+    @property
+    def like(self):
+        return [l.user_id for l in self.likes]
+
 class ReelLike(Base):
     __tablename__ = "reel_likes"
     user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
